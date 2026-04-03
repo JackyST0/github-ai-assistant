@@ -155,7 +155,7 @@ public class ReviewService {
                 return Math.min(score, 100); // 确保不超过 100
             }
             return 70;
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return 70; // 默认分数
         }
     }

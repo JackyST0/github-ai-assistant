@@ -20,12 +20,11 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
-    - name: Build with Maven
-      run: mvn clean package -DskipTests
-    
-    - name: Run tests
-      run: mvn test
-      continue-on-error: true
+    - name: Make Maven Wrapper executable
+      run: chmod +x ./mvnw
+
+    - name: Verify with Maven Wrapper
+      run: ./mvnw -B verify
     
     - name: Upload JAR
       uses: actions/upload-artifact@v4

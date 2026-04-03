@@ -106,6 +106,38 @@ class ConsoleUtilsTest {
                 System.setOut(originalOut);
             }
         }
+
+        @Test
+        @DisplayName("detail 应输出统一的键值格式")
+        void shouldOutputDetailInKeyValueFormat() {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outputStream));
+
+            try {
+                ConsoleUtils.detail("模型", "openai");
+
+                assertTrue(outputStream.toString().contains("   模型: openai"));
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+
+        @Test
+        @DisplayName("bullet 应输出统一的项目符号格式")
+        void shouldOutputBulletItem() {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outputStream));
+
+            try {
+                ConsoleUtils.bullet("第一项");
+
+                assertEquals("• 第一项", outputStream.toString().trim());
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
     }
 
     @Nested
@@ -177,6 +209,24 @@ class ConsoleUtilsTest {
                 assertEquals("═".repeat(50), lines[0]);
                 assertEquals("测试标题", lines[1]);
                 assertEquals("═".repeat(50), lines[2]);
+            } finally {
+                System.setOut(originalOut);
+            }
+        }
+
+        @Test
+        @DisplayName("section 应输出标题和单分隔线")
+        void shouldOutputSectionWithSeparator() {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            PrintStream originalOut = System.out;
+            System.setOut(new PrintStream(outputStream));
+
+            try {
+                ConsoleUtils.section("测试区块");
+
+                String output = outputStream.toString();
+                assertTrue(output.contains("测试区块"));
+                assertTrue(output.contains("─".repeat(50)));
             } finally {
                 System.setOut(originalOut);
             }

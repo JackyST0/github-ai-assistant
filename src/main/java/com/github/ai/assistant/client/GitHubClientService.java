@@ -1,7 +1,6 @@
 package com.github.ai.assistant.client;
 
 import com.github.ai.assistant.config.AppConfig;
-import com.github.ai.assistant.model.IssueClassification;
 import com.github.ai.assistant.model.PullRequestInfo;
 import com.github.ai.assistant.model.PullRequestInfo.FileChange;
 import org.kohsuke.github.*;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -24,11 +24,17 @@ public class GitHubClientService {
 
     private GitHub github;
     private final AppConfig appConfig;
+    private final Supplier<GitHubBuilder> gitHubBuilderSupplier;
     private boolean initialized = false;
     private String initError = null;
 
     public GitHubClientService(AppConfig appConfig) {
+        this(appConfig, GitHubBuilder::new);
+    }
+
+    GitHubClientService(AppConfig appConfig, Supplier<GitHubBuilder> gitHubBuilderSupplier) {
         this.appConfig = appConfig;
+        this.gitHubBuilderSupplier = gitHubBuilderSupplier;
         // 延迟初始化，不在构造函数中连接 GitHub
         tryInitialize();
     }
@@ -40,17 +46,15 @@ public class GitHubClientService {
         try {
             String token = appConfig.getGithub().getToken();
             if (token != null && !token.isBlank()) {
-                this.github = new GitHubBuilder().withOAuthToken(token).build();
+                GitHubBuilder builder = gitHubBuilderSupplier.get();
+                String apiUrl = appConfig.getGithub().getApiUrl();
+                if (apiUrl != null && !apiUrl.isBlank()) {
+                    builder = builder.withEndpoint(apiUrl);
+                }
+                this.github = builder.withOAuthToken(token).build();
                 this.initialized = true;
             } else {
-                // 尝试使用环境变量
-                String envToken = System.getenv("GITHUB_TOKEN");
-                if (envToken != null && !envToken.isBlank()) {
-                    this.github = new GitHubBuilder().withOAuthToken(envToken).build();
-                    this.initialized = true;
-                } else {
-                    this.initError = "GitHub Token 未配置。请设置环境变量 GITHUB_TOKEN 或在 application.yml 中配置 app.github.token";
-                }
+                this.initError = "GitHub Token 未配置。请设置环境变量 GITHUB_TOKEN 或在 application.yml 中配置 app.github.token";
             }
         } catch (IOException e) {
             this.initError = "GitHub 连接失败: " + e.getMessage();
@@ -176,7 +180,7 @@ public class GitHubClientService {
         try {
             github.getMyself();
             return true;
-        } catch (Exception e) {
+        } catch (IOException e) {
             return false;
         }
     }

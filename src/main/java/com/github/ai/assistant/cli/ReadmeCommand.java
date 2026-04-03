@@ -1,5 +1,6 @@
 package com.github.ai.assistant.cli;
 
+import com.github.ai.assistant.config.AppConfig;
 import com.github.ai.assistant.service.ReadmeService;
 import com.github.ai.assistant.service.ReadmeService.ProjectContext;
 import com.github.ai.assistant.util.ConsoleUtils;
@@ -8,6 +9,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -33,7 +35,7 @@ public class ReadmeCommand implements Callable<Integer> {
     @Option(names = {"-o", "--output"}, description = "输出文件名 (默认为 README.md)")
     private String outputFile = "README.md";
 
-    @Option(names = {"-l", "--lang"}, description = "README 语言 (zh/en)", defaultValue = "zh")
+    @Option(names = {"-l", "--lang"}, description = "README 语言 (zh/en)，默认使用应用配置")
     private String language;
 
     @Option(names = {"--dry-run"}, description = "仅预览不写入文件")
@@ -42,11 +44,13 @@ public class ReadmeCommand implements Callable<Integer> {
     @Option(names = {"-y", "--yes"}, description = "跳过确认直接写入")
     private boolean autoConfirm;
 
-    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)", defaultValue = "openai")
+    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)，默认使用应用配置")
     private String model;
 
-    public ReadmeCommand(ReadmeService readmeService) {
+    public ReadmeCommand(ReadmeService readmeService, AppConfig appConfig) {
         this.readmeService = readmeService;
+        this.language = appConfig.getAi().getDefaultLanguage();
+        this.model = appConfig.getAi().getDefaultModel();
     }
 
     @Override
@@ -60,19 +64,18 @@ public class ReadmeCommand implements Callable<Integer> {
             }
 
             // 分析项目
-            System.out.println("\n🔍 分析项目结构...");
+            ConsoleUtils.section("🔍 分析项目结构...");
             ProjectContext context = readmeService.analyzeProject(projectPath);
             
             // 显示检测结果
-            System.out.println("\n📋 检测结果：");
-            ConsoleUtils.separator();
-            System.out.println("   项目名称: " + context.projectName());
-            System.out.println("   项目类型: " + String.join(", ", context.projectTypes()));
+            ConsoleUtils.section("📋 检测结果：");
+            ConsoleUtils.detail("项目名称", context.projectName());
+            ConsoleUtils.detail("项目类型", String.join(", ", context.projectTypes()));
             if (context.description() != null && !context.description().isBlank()) {
-                System.out.println("   项目描述: " + context.description());
+                ConsoleUtils.detail("项目描述", context.description());
             }
             if (!context.dependencies().isEmpty()) {
-                System.out.println("   主要依赖: " + String.join(", ", context.dependencies().subList(0, Math.min(5, context.dependencies().size()))));
+                ConsoleUtils.detail("主要依赖", String.join(", ", context.dependencies().subList(0, Math.min(5, context.dependencies().size()))));
             }
             ConsoleUtils.separator();
 
@@ -81,15 +84,15 @@ public class ReadmeCommand implements Callable<Integer> {
                 () -> readmeService.generateReadme(context, language, model));
 
             // 显示生成内容
-            System.out.println("\n📄 生成的 README：");
-            ConsoleUtils.separator();
-            System.out.println(readmeContent);
+            ConsoleUtils.section("📄 生成的 README：");
+            ConsoleUtils.line(readmeContent);
             ConsoleUtils.separator();
 
             // Dry-run 模式
             if (dryRun) {
-                System.out.println("\n✨ [Dry Run] 未写入文件");
-                System.out.println("💡 提示：移除 --dry-run 参数可写入文件");
+                ConsoleUtils.blankLine();
+                ConsoleUtils.line("✨ [Dry Run] 未写入文件");
+                ConsoleUtils.line("💡 提示：移除 --dry-run 参数可写入文件");
                 return 0;
             }
 
@@ -119,7 +122,15 @@ public class ReadmeCommand implements Callable<Integer> {
             }
 
             return 0;
+        } catch (IOException e) {
+            ConsoleUtils.error("I/O 错误: " + e.getMessage());
+            return 1;
         } catch (Exception e) {
+            if (e instanceof InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                ConsoleUtils.error("操作已中断");
+                return 1;
+            }
             ConsoleUtils.error("错误: " + e.getMessage());
             return 1;
         }

@@ -2,6 +2,8 @@ package com.github.ai.assistant.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -18,6 +20,8 @@ import java.util.stream.Stream;
  */
 @Service
 public class ReadmeService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReadmeService.class);
 
     private final AIService aiService;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -94,7 +98,9 @@ public class ReadmeService {
                 if (root.has("dependencies")) {
                     root.get("dependencies").fieldNames().forEachRemaining(dependencies::add);
                 }
-            } catch (Exception ignored) {}
+            } catch (IOException e) {
+                log.debug("读取 package.json 失败: {}", packageJsonPath, e);
+            }
             mainFiles.add("package.json");
         }
 
@@ -109,7 +115,9 @@ public class ReadmeService {
                         if (!dep.isEmpty()) dependencies.add(dep);
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (IOException e) {
+                log.debug("读取 requirements.txt 失败: {}", projectPath.resolve("requirements.txt"), e);
+            }
             mainFiles.add("requirements.txt");
         }
         if (Files.exists(projectPath.resolve("pyproject.toml"))) {
@@ -186,7 +194,8 @@ public class ReadmeService {
      * 生成 README 内容
      */
     public String generateReadme(ProjectContext context, String language, String model) {
-        String systemPrompt = buildSystemPrompt(language);
+        String resolvedLanguage = resolveLanguage(language);
+        String systemPrompt = buildSystemPrompt(resolvedLanguage);
         String userMessage = buildUserMessage(context);
         
         return aiService.chat(model, systemPrompt, userMessage);
@@ -259,5 +268,13 @@ public class ReadmeService {
         sb.append("\n项目结构：\n```\n").append(context.structureTree()).append("```\n");
 
         return sb.toString();
+    }
+
+    private String resolveLanguage(String language) {
+        String resolvedLanguage = aiService.resolveLanguage(language);
+        if (resolvedLanguage == null || resolvedLanguage.isBlank()) {
+            return (language == null || language.isBlank()) ? "zh" : language;
+        }
+        return resolvedLanguage;
     }
 }

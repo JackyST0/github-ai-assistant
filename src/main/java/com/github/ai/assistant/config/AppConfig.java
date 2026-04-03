@@ -2,6 +2,7 @@ package com.github.ai.assistant.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 
 /**
  * 应用配置类
@@ -9,11 +10,21 @@ import org.springframework.context.annotation.Configuration;
  * 绑定 application.yml 中的配置
  */
 @Configuration
+@PropertySource(value = "classpath:build.properties", ignoreResourceNotFound = true)
 @ConfigurationProperties(prefix = "app")
 public class AppConfig {
 
+    private String version = "dev";
     private GitHub github = new GitHub();
     private AI ai = new AI();
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
 
     public GitHub getGithub() {
         return github;

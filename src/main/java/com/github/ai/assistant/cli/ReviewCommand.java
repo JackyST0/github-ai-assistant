@@ -1,11 +1,13 @@
 package com.github.ai.assistant.cli;
 
+import com.github.ai.assistant.config.AppConfig;
 import com.github.ai.assistant.service.ReviewService;
 import com.github.ai.assistant.util.ConsoleUtils;
 import org.springframework.stereotype.Component;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+import java.io.IOException;
 import java.util.concurrent.Callable;
 
 /**
@@ -32,14 +34,15 @@ public class ReviewCommand implements Callable<Integer> {
     @Option(names = {"--comment"}, description = "自动发布评论到 GitHub", defaultValue = "false")
     private boolean autoComment;
 
-    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)", defaultValue = "openai")
+    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)，默认使用应用配置")
     private String model;
 
     @Option(names = {"--focus"}, description = "审查重点 (security/performance/style/all)", defaultValue = "all")
     private String focus;
 
-    public ReviewCommand(ReviewService reviewService) {
+    public ReviewCommand(ReviewService reviewService, AppConfig appConfig) {
         this.reviewService = reviewService;
+        this.model = appConfig.getAi().getDefaultModel();
     }
 
     @Override
@@ -48,38 +51,42 @@ public class ReviewCommand implements Callable<Integer> {
             var result = ConsoleUtils.withSpinner("🔍 正在审查 PR #" + prNumber + "...",
                 () -> reviewService.reviewPullRequest(repository, prNumber, focus, model));
             
-            System.out.println("📊 PR 审查结果");
-            System.out.println("═".repeat(50));
-            System.out.println(result.summary());
-            System.out.println();
+            ConsoleUtils.doubleSection("📊 PR 审查结果");
+            ConsoleUtils.line(result.summary());
+            ConsoleUtils.blankLine();
             
             if (!result.issues().isEmpty()) {
-                System.out.println("⚠️ 发现的问题：");
-                result.issues().forEach(issue -> 
-                    System.out.println("  • " + issue)
-                );
-                System.out.println();
+                ConsoleUtils.line("⚠️ 发现的问题：");
+                result.issues().forEach(ConsoleUtils::bullet);
+                ConsoleUtils.blankLine();
             }
             
             if (!result.suggestions().isEmpty()) {
-                System.out.println("💡 改进建议：");
-                result.suggestions().forEach(suggestion -> 
-                    System.out.println("  • " + suggestion)
-                );
+                ConsoleUtils.line("💡 改进建议：");
+                result.suggestions().forEach(ConsoleUtils::bullet);
             }
             
-            System.out.println("═".repeat(50));
-            System.out.println("评分: " + result.score() + "/100");
+            ConsoleUtils.doubleSeparator();
+            ConsoleUtils.line("评分: " + result.score() + "/100");
             
             if (autoComment) {
-                System.out.println("\n📤 正在发布评论到 GitHub...");
+                ConsoleUtils.blankLine();
+                ConsoleUtils.line("📤 正在发布评论到 GitHub...");
                 reviewService.postReviewComment(repository, prNumber, result);
-                System.out.println("✅ 评论已发布");
+                ConsoleUtils.success("评论已发布");
             }
             
             return 0;
+        } catch (IOException e) {
+            ConsoleUtils.error("访问 GitHub 失败: " + e.getMessage());
+            return 1;
         } catch (Exception e) {
-            System.err.println("❌ 错误: " + e.getMessage());
+            if (e instanceof InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                ConsoleUtils.error("操作已中断");
+                return 1;
+            }
+            ConsoleUtils.error("错误: " + e.getMessage());
             return 1;
         }
     }

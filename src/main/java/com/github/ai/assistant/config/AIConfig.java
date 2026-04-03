@@ -15,11 +15,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-/**
- * AI 模型配置
- * 
- * 配置 OpenAI 和 Ollama 两种 AI 提供者
- */
 @Configuration
 public class AIConfig {
 
@@ -32,20 +27,22 @@ public class AIConfig {
     @Value("${spring.ai.openai.chat.options.model:gpt-4o-mini}")
     private String openaiModel;
 
+    @Value("${spring.ai.openai.chat.options.temperature:0.7}")
+    private Double openaiTemperature;
+
     @Value("${spring.ai.ollama.base-url:http://localhost:11434}")
     private String ollamaBaseUrl;
 
     @Value("${spring.ai.ollama.chat.options.model:llama3}")
     private String ollamaModel;
 
-    /**
-     * OpenAI ChatModel
-     */
+    @Value("${spring.ai.ollama.chat.options.temperature:0.7}")
+    private Double ollamaTemperature;
+
     @Bean(name = "openAiChatModel")
     @Primary
     public ChatModel openAiChatModel() {
         if (openaiApiKey == null || openaiApiKey.isBlank()) {
-            // 返回一个占位符，实际使用时会报错提示配置 API Key
             return new PlaceholderChatModel("OpenAI API Key 未配置，请设置环境变量 OPENAI_API_KEY 或在 application.yml 中配置");
         }
         
@@ -53,22 +50,19 @@ public class AIConfig {
         
         OpenAiChatOptions options = OpenAiChatOptions.builder()
             .withModel(openaiModel)
-            .withTemperature(0.7)
+            .withTemperature(openaiTemperature)
             .build();
         
         return new OpenAiChatModel(openAiApi, options);
     }
 
-    /**
-     * Ollama ChatModel (本地模型)
-     */
     @Bean(name = "ollamaChatModel")
     public ChatModel ollamaChatModel() {
         OllamaApi ollamaApi = new OllamaApi(ollamaBaseUrl);
         
         OllamaOptions options = OllamaOptions.builder()
             .withModel(ollamaModel)
-            .withTemperature(0.7)
+            .withTemperature(ollamaTemperature)
             .build();
         
         return OllamaChatModel.builder()
@@ -77,9 +71,6 @@ public class AIConfig {
             .build();
     }
 
-    /**
-     * 占位符 ChatModel，用于未配置 API Key 时给出友好提示
-     */
     private static class PlaceholderChatModel implements ChatModel {
         private final String errorMessage;
 

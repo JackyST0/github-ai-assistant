@@ -21,8 +21,11 @@ jobs:
         distribution: 'temurin'
         cache: maven
     
+    - name: Make Maven Wrapper executable
+      run: chmod +x ./mvnw
+
     - name: Build JAR
-      run: mvn clean package -DskipTests
+      run: ./mvnw -B clean verify
     
     - name: Upload JAR to Release
       uses: softprops/action-gh-release@v1
@@ -57,9 +60,12 @@ jobs:
         java-version: '21'
         distribution: 'graalvm'
         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Make Maven Wrapper executable
+      run: chmod +x ./mvnw
     
     - name: Build Native Image
-      run: mvn clean package -Pnative -DskipTests
+      run: ./mvnw -B clean package -Pnative -DskipTests
       timeout-minutes: 30
     
     - name: Rename artifact (Unix)

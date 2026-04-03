@@ -5,21 +5,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.ExitCodeGenerator;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.ai.autoconfigure.openai.OpenAiAutoConfiguration;
 import org.springframework.ai.autoconfigure.ollama.OllamaAutoConfiguration;
 import picocli.CommandLine;
 import picocli.CommandLine.IFactory;
 
-/**
- * GitHub AI Assistant 主应用入口
- * 
- * 一个 AI 驱动的 GitHub 助手，支持：
- * - PR 智能审查
- * - Commit Message 生成
- * - Issue 管理
- * - 代码解释
- */
 @SpringBootApplication(exclude = {
     OpenAiAutoConfiguration.class,
     OllamaAutoConfiguration.class

@@ -27,7 +27,8 @@ public class ExplainService {
      * @return 解释结果
      */
     public String explain(String content, String type, String language, String detailLevel, String model) {
-        String systemPrompt = buildSystemPrompt(type, language, detailLevel);
+        String resolvedLanguage = resolveLanguage(language);
+        String systemPrompt = buildSystemPrompt(type, resolvedLanguage, detailLevel);
         String userMessage = buildUserMessage(content, type);
         
         return aiService.chat(model, systemPrompt, userMessage);
@@ -72,5 +73,13 @@ public class ExplainService {
             case "code" -> "请解释这段代码：\n\n```\n" + content + "\n```";
             default -> "请解释：\n\n" + content;
         };
+    }
+
+    private String resolveLanguage(String language) {
+        String resolvedLanguage = aiService.resolveLanguage(language);
+        if (resolvedLanguage == null || resolvedLanguage.isBlank()) {
+            return (language == null || language.isBlank()) ? "zh" : language;
+        }
+        return resolvedLanguage;
     }
 }

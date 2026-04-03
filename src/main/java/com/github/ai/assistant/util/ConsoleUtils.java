@@ -1,6 +1,5 @@
 package com.github.ai.assistant.util;
 
-import java.io.Console;
 import java.util.Scanner;
 
 /**
@@ -107,6 +106,34 @@ public final class ConsoleUtils {
      */
     public static void info(String message) {
         System.out.println("ℹ️  " + message);
+    }
+
+    public static void line(String message) {
+        System.out.println(message);
+    }
+
+    public static void blankLine() {
+        System.out.println();
+    }
+
+    public static void detail(String label, String value) {
+        System.out.println("   " + label + ": " + value);
+    }
+
+    public static void bullet(String value) {
+        System.out.println("   • " + value);
+    }
+
+    public static void section(String title) {
+        blankLine();
+        line(title);
+        separator();
+    }
+
+    public static void doubleSection(String title) {
+        blankLine();
+        line(title);
+        doubleSeparator();
     }
 
     /**

@@ -35,11 +35,31 @@ public class AIService {
      * 根据模型名称获取对应的 ChatClient
      */
     public ChatClient getClient(String model) {
-        return switch (model.toLowerCase()) {
-            case "ollama", "local" -> ollamaClient;
-            case "openai", "gpt" -> openAiClient;
-            default -> openAiClient;  // 默认使用 OpenAI
+        return switch (resolveModel(model)) {
+            case "ollama" -> ollamaClient;
+            case "openai" -> openAiClient;
+            default -> throw new IllegalStateException("未识别的模型: " + model);
         };
+    }
+
+    public String resolveModel(String model) {
+        String resolvedModel = (model == null || model.isBlank())
+            ? appConfig.getAi().getDefaultModel()
+            : model.trim();
+
+        return switch (resolvedModel.toLowerCase()) {
+            case "ollama", "local" -> "ollama";
+            case "openai", "gpt" -> "openai";
+            default -> throw new IllegalArgumentException(
+                "不支持的 AI 模型: " + resolvedModel + "，支持的值为 openai 或 ollama");
+        };
+    }
+
+    public String resolveLanguage(String language) {
+        if (language == null || language.isBlank()) {
+            return appConfig.getAi().getDefaultLanguage();
+        }
+        return language;
     }
 
     /**

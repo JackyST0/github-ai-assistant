@@ -42,7 +42,8 @@ public class CommitService {
             throw new IllegalStateException("没有 staged 的变更。请先使用 git add 添加文件。");
         }
         
-        String systemPrompt = buildSystemPrompt(language, type);
+        String resolvedLanguage = resolveLanguage(language);
+        String systemPrompt = buildSystemPrompt(resolvedLanguage, type);
         String userMessage = buildUserMessage(diff);
         
         return aiService.chat(model, systemPrompt, userMessage);
@@ -240,6 +241,14 @@ public class CommitService {
                 4. Do not end with a period
                 """.formatted(typeInstruction);
         }
+    }
+
+    private String resolveLanguage(String language) {
+        String resolvedLanguage = aiService.resolveLanguage(language);
+        if (resolvedLanguage == null || resolvedLanguage.isBlank()) {
+            return (language == null || language.isBlank()) ? "zh" : language;
+        }
+        return resolvedLanguage;
     }
 
     /**

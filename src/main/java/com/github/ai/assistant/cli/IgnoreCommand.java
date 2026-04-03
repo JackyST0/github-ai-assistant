@@ -1,5 +1,6 @@
 package com.github.ai.assistant.cli;
 
+import com.github.ai.assistant.config.AppConfig;
 import com.github.ai.assistant.service.IgnoreService;
 import com.github.ai.assistant.service.IgnoreService.ProjectInfo;
 import com.github.ai.assistant.util.ConsoleUtils;
@@ -8,6 +9,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -42,11 +44,12 @@ public class IgnoreCommand implements Callable<Integer> {
     @Option(names = {"-y", "--yes"}, description = "跳过确认直接写入")
     private boolean autoConfirm;
 
-    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)", defaultValue = "openai")
+    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)，默认使用应用配置")
     private String model;
 
-    public IgnoreCommand(IgnoreService ignoreService) {
+    public IgnoreCommand(IgnoreService ignoreService, AppConfig appConfig) {
         this.ignoreService = ignoreService;
+        this.model = appConfig.getAi().getDefaultModel();
     }
 
     @Override
@@ -60,17 +63,16 @@ public class IgnoreCommand implements Callable<Integer> {
             }
 
             // 分析项目
-            System.out.println("\n🔍 分析项目结构...");
+            ConsoleUtils.section("🔍 分析项目结构...");
             ProjectInfo projectInfo = ignoreService.analyzeProject(projectPath);
             
             // 显示检测结果
-            System.out.println("\n📋 检测结果：");
-            ConsoleUtils.separator();
-            System.out.println("   项目类型: " + String.join(", ", projectInfo.projectTypes()));
-            System.out.println("   构建工具: " + String.join(", ", projectInfo.buildTools()));
-            System.out.println("   IDE/编辑器: " + String.join(", ", projectInfo.ides()));
+            ConsoleUtils.section("📋 检测结果：");
+            ConsoleUtils.detail("项目类型", String.join(", ", projectInfo.projectTypes()));
+            ConsoleUtils.detail("构建工具", String.join(", ", projectInfo.buildTools()));
+            ConsoleUtils.detail("IDE/编辑器", String.join(", ", projectInfo.ides()));
             if (!projectInfo.frameworks().isEmpty()) {
-                System.out.println("   框架: " + String.join(", ", projectInfo.frameworks()));
+                ConsoleUtils.detail("框架", String.join(", ", projectInfo.frameworks()));
             }
             ConsoleUtils.separator();
 
@@ -85,15 +87,15 @@ public class IgnoreCommand implements Callable<Integer> {
                 () -> ignoreService.generateGitignore(projectInfo, existingContent, append, model));
 
             // 显示生成内容
-            System.out.println("\n📄 生成的 .gitignore：");
-            ConsoleUtils.separator();
-            System.out.println(gitignoreContent);
+            ConsoleUtils.section("📄 生成的 .gitignore：");
+            ConsoleUtils.line(gitignoreContent);
             ConsoleUtils.separator();
 
             // Dry-run 模式
             if (dryRun) {
-                System.out.println("\n✨ [Dry Run] 未写入文件");
-                System.out.println("💡 提示：移除 --dry-run 参数可写入文件");
+                ConsoleUtils.blankLine();
+                ConsoleUtils.line("✨ [Dry Run] 未写入文件");
+                ConsoleUtils.line("💡 提示：移除 --dry-run 参数可写入文件");
                 return 0;
             }
 
@@ -134,7 +136,15 @@ public class IgnoreCommand implements Callable<Integer> {
             }
 
             return 0;
+        } catch (IOException e) {
+            ConsoleUtils.error("I/O 错误: " + e.getMessage());
+            return 1;
         } catch (Exception e) {
+            if (e instanceof InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                ConsoleUtils.error("操作已中断");
+                return 1;
+            }
             ConsoleUtils.error("错误: " + e.getMessage());
             return 1;
         }

@@ -1,5 +1,6 @@
 package com.github.ai.assistant.cli;
 
+import com.github.ai.assistant.config.AppConfig;
 import com.github.ai.assistant.service.ExplainService;
 import com.github.ai.assistant.util.ConsoleUtils;
 import org.springframework.stereotype.Component;
@@ -8,6 +9,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.Callable;
 
 /**
@@ -31,17 +33,19 @@ public class ExplainCommand implements Callable<Integer> {
     @Option(names = {"-f", "--file"}, description = "要解释的代码文件")
     private File file;
 
-    @Option(names = {"-l", "--lang"}, description = "输出语言 (zh/en)", defaultValue = "zh")
+    @Option(names = {"-l", "--lang"}, description = "输出语言 (zh/en)，默认使用应用配置")
     private String language;
 
-    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)", defaultValue = "openai")
+    @Option(names = {"-m", "--model"}, description = "AI 模型 (openai/ollama)，默认使用应用配置")
     private String model;
 
     @Option(names = {"--detail"}, description = "详细程度 (simple/detailed)", defaultValue = "detailed")
     private String detailLevel;
 
-    public ExplainCommand(ExplainService explainService) {
+    public ExplainCommand(ExplainService explainService, AppConfig appConfig) {
         this.explainService = explainService;
+        this.language = appConfig.getAi().getDefaultLanguage();
+        this.model = appConfig.getAi().getDefaultModel();
     }
 
     @Override
@@ -57,7 +61,7 @@ public class ExplainCommand implements Callable<Integer> {
                 content = input;
                 type = input.startsWith("git ") ? "git-command" : "code";
             } else {
-                System.err.println("❌ 请提供要解释的命令或使用 -f 指定文件");
+                ConsoleUtils.error("请提供要解释的命令或使用 -f 指定文件");
                 return 1;
             }
             
@@ -67,14 +71,22 @@ public class ExplainCommand implements Callable<Integer> {
                 () -> explainService.explain(finalContent, finalType, language, detailLevel, model));
             
             String displayName = file != null ? file.getName() : input;
-            System.out.println("📖 " + displayName);
-            System.out.println("─".repeat(50));
-            System.out.println(explanation);
-            System.out.println("─".repeat(50));
+            ConsoleUtils.line("📖 " + displayName);
+            ConsoleUtils.separator();
+            ConsoleUtils.line(explanation);
+            ConsoleUtils.separator();
             
             return 0;
+        } catch (IOException e) {
+            ConsoleUtils.error("读取文件失败: " + e.getMessage());
+            return 1;
         } catch (Exception e) {
-            System.err.println("❌ 错误: " + e.getMessage());
+            if (e instanceof InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                ConsoleUtils.error("操作已中断");
+                return 1;
+            }
+            ConsoleUtils.error("错误: " + e.getMessage());
             return 1;
         }
     }
