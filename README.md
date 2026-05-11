@@ -189,6 +189,8 @@ export OPENAI_API_KEY=your_api_key
 # export GITHUB_API_URL=https://github.example.com/api/v3
 ```
 
+> 如果你同时使用 GitHub CLI，注意 `GITHUB_TOKEN` 环境变量会覆盖 `gh auth login` 存在 keyring 中的凭据。若 `gh auth status` 提示 token 无效，可以先运行 `unset GITHUB_TOKEN`，再重新执行 `gh auth login`。
+
 也可以直接在 `src/main/resources/application.yml` 中配置：
 
 ```yaml
