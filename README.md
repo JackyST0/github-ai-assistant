@@ -216,6 +216,14 @@ app:
     default-language: zh
 ```
 
+本地开发时推荐复制示例配置，避免把密钥写入默认配置文件：
+
+```bash
+cp src/main/resources/application-local.yml.example src/main/resources/application-local.yml
+```
+
+`application-local.yml` 已被 `.gitignore` 忽略，适合存放本机 API Key 和 GitHub Token。
+
 使配置生效：
 ```bash
 source ~/.zshrc
